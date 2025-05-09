@@ -168,7 +168,8 @@ public class AgentExecutor: DefaultChain {
                 } catch {
                     
                 }
-                return (LLMResult(llm_output: next_step_output.1), Parsed.str(next_step_output.1))
+                print("DEBUG: AgentExecutor._call is returning Parsed.finish as intended.")
+                return (LLMResult(llm_output: next_step_output.1), Parsed.finish(finish))
             case .action(let action):
                     do {
                 for callback in self.callbacks {
