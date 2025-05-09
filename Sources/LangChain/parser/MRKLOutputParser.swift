@@ -17,15 +17,6 @@ public struct MRKLOutputParser: BaseOutputParser {
             return Parsed.finish(AgentFinish(final: answer))
         }
         
-        // Regex to find "Action: [action]
-Action Input: [input]" or "Action: [action] Action Input: [input]"
-        // Making sure to capture the content correctly, even with varying whitespace.
-        // The pattern looks for "Action" followed by a colon, then captures the action.
-        // Then it looks for "Action Input" followed by a colon, then captures the input.
-        // It allows for optional newlines or spaces between "Action:" and the action itself,
-        // and between the action and "Action Input:", and between "Action Input:" and the input itself.
-        // (.*?) is a non-greedy match for the action.
-        // (.*) is a greedy match for the input (captures till the end of the string or next pattern if regex was more complex).
         let pattern = "Action\\s*:[\\s]*(.*?)\\s*Action\\s*Input\\s*:[\\s]*(.*)"
         // Adding NSRegularExpression.Options.dotMatchesLineSeparators to allow . to match newlines for the input part
         // Adding NSRegularExpression.Options.caseInsensitive for "Action" and "Action Input"
@@ -60,6 +51,3 @@ Action Input: [input]" or "Action: [action] Action Input: [input]"
         }
     }
 }
-
-// Constants like FINAL_ANSWER_ACTION should ideally be defined elsewhere if used across multiple files.
-// For now, a local string "FINAL ANSWER:" is used above.
