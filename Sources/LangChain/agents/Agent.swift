@@ -117,9 +117,15 @@ public class AgentExecutor: DefaultChain {
         case .finish(let finish):
             return (step, finish.final)
         case .action(let action):
-            let tool = tools.filter{$0.name() == action.action}.first!
+            print("DEBUG: take_next_step - Received Parsed.action. Attempting action: '\(action.action)' with input: '\(action.input)'")
+            print("DEBUG: take_next_step - Available tools: \(tools.map { $0.name() })")
+            guard let tool = tools.first(where: { $0.name() == action.action }) else {
+                print("ERROR: take_next_step - Tool '\(action.action)' not found!")
+                let observation = try! await InvalidTool(tool_name: action.action).run(args: action.input)
+                return (step, observation)
+            }
             do {
-                print("try call \(tool.name()) tool.")
+                print("DEBUG: take_next_step - Found tool: '\(tool.name())'. Calling tool.run().")
                 var observation = try await tool.run(args: action.input)
                 if observation.count > 1000 {
                     observation = String(observation.prefix(1000))
