@@ -12,6 +12,9 @@ import OpenAIKit
 
 public struct OpenAIEmbeddings: Embeddings {
     let session: URLSession
+    // Storing the model name as a property for clarity and potential future configuration
+    private let modelName: String = "text-embedding-3-small"
+
     public init(session: URLSession = URLSession(configuration: .default)) {
         self.session = session
     }
@@ -32,11 +35,14 @@ public struct OpenAIEmbeddings: Embeddings {
             let openAIClient = OpenAIKit.Client(session: session, configuration: configuration)
 
             do {
-                let embedding = try await openAIClient.embeddings.create(input: text)
+                // Ensure the correct model is specified in the API call
+                let embedding = try await openAIClient.embeddings.create(model: self.modelName, input: text)
                 
                 //            print(embedding.data[0].embedding)
                 return embedding.data[0].embedding
             } catch {
+                // Log the error for better debugging
+                print("Error creating embedding: \(error)")
                 return []
             }
         } else {
