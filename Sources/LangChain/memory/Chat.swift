@@ -23,7 +23,7 @@ public class BaseChatMemory: BaseMemory {
     }
     
     public func clear() {
-        
+        self.chat_memory.clear()
     }
     
     
