@@ -137,7 +137,12 @@ public class AgentExecutor: DefaultChain {
                 return (step, observation)
             }
         default:
-            return (step, "fail")
+            // Add more detailed logging for unexpected Parsed types
+            let stepDescription = String(describing: step)
+            print("ERROR: take_next_step - Unexpected Parsed type received: \(stepDescription). This may cause the agent to stall.")
+            // It might be better to return an error or a specific state here
+            // For now, returning "fail" to maintain existing behavior but with better logging.
+            return (step, "fail: Unexpected Parsed type \(stepDescription)")
         }
     }
     public override func _call(args: String) async -> (LLMResult?, Parsed) {
