@@ -43,55 +43,55 @@ public class Gemini: LLM {
     }
 
     override func _send(text: String, stops: [String]) async throws -> LLMResult {
-        // Prepare GenerationConfig
-        var generationConfig = GenerationConfig()
-
-        if let temp = self.temperature {
-            generationConfig.temperature = temp
-        }
-        if let topP = self.topP {
-            generationConfig.topP = topP
-        }
-        if let topK = self.topK {
-            generationConfig.topK = topK
-        }
-        if let maxTokens = self.maxOutputTokens {
-            generationConfig.maxOutputTokens = maxTokens
-        }
-        
         // Combine stop sequences from init and _send parameters
         var effectiveStopSequences = self.stopSequences ?? []
         if !stops.isEmpty {
             effectiveStopSequences.append(contentsOf: stops)
         }
-        if !effectiveStopSequences.isEmpty {
-            generationConfig.stopSequences = effectiveStopSequences
-        }
+        // Pass nil if empty, as GenerationConfig's stopSequences parameter is optional
+        let finalStopSequences = effectiveStopSequences.isEmpty ? nil : effectiveStopSequences
 
+        // Prepare GenerationConfig by passing parameters to its initializer
+        let generationConfig = GenerationConfig(
+            temperature: self.temperature,
+            topP: self.topP,
+            topK: self.topK,
+            // candidateCount is another option in GenerationConfig, but not exposed by this LLM class
+            maxOutputTokens: self.maxOutputTokens,
+            stopSequences: finalStopSequences
+        )
 
         // Initialize the Google AI model
         let model = GenerativeModel(
             name: self.modelName,
             apiKey: self.apiKey,
-            generationConfig: generationConfig, // Pass the fully constructed config
-            safetySettings: nil, // Configure as needed, or pass from init
+            generationConfig: generationConfig,
+            safetySettings: nil, // Configure as needed, or pass from init if you extend this class
             tools: nil,          // Configure as needed, or pass from init
             toolConfig: nil      // Configure as needed, or pass from init
         )
         
         let response = try await model.generateContent(text)
         
-        guard let responseText = response.text else {
-            // Fallback or further inspection if response.text is nil
-            // For example, check response.candidates if available and appropriate
-            if let candidates = response.candidates, let firstCandidate = candidates.first, let candidateText = firstCandidate.content.parts.compactMap({ $0.text }).joined() {
-                 if !candidateText.isEmpty {
+        // Check response.text first, ensuring it's not nil and not empty
+        if let responseText = response.text, !responseText.isEmpty {
+            return LLMResult(llm_output: responseText)
+        } else {
+            // response.text was nil or empty. Try to get text from the first candidate.
+            // response.candidates is of type [CandidateResponse] (non-optional array).
+            // response.candidates.first gives an optional CandidateResponse.
+            if let firstCandidate = response.candidates.first {
+                // ModelContent.Part has an extension providing a `.text: String?` accessor.
+                // compactMap will filter out non-text parts and nil texts.
+                // joined() will concatenate the text parts into a single String.
+                let candidateText = firstCandidate.content.parts.compactMap({ $0.text }).joined()
+                if !candidateText.isEmpty {
                     return LLMResult(llm_output: candidateText)
-                 }
+                }
             }
+            // If we're here, either response.text was nil/empty, 
+            // or there were no candidates, or the first candidate had no usable text.
             throw GeminiError.responseNoText 
         }
-        
-        return LLMResult(llm_output: responseText)
     }
 }
