@@ -10,13 +10,31 @@ import Foundation
 public struct MRKLOutputParser: BaseOutputParser {
     public init() {}
     public func parse(text: String) -> Parsed {
-        print(text.uppercased()) // For debugging
-        let finalAnswerAction = "FINAL ANSWER:" // Assuming this is the marker
-        if let finalAnswerRange = text.uppercased().range(of: finalAnswerAction) {
-            let answer = text[finalAnswerRange.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
-            return Parsed.finish(AgentFinish(final: answer))
+        print("MRKLOutputParser: Parsing text: \(text.prefix(200))...") // For debugging
+        
+        // Try multiple variations of "Final Answer" to be more flexible
+        let finalAnswerVariations = [
+            "FINAL ANSWER:",
+            "Final Answer:",
+            "final answer:",
+            "FINAL_ANSWER:",
+            "Final_Answer:",
+            "final_answer:"
+        ]
+        
+        let textUpper = text.uppercased()
+        
+        // Check for any variation of final answer
+        for variation in finalAnswerVariations {
+            let searchPattern = variation.uppercased()
+            if let finalAnswerRange = textUpper.range(of: searchPattern) {
+                let answer = text[finalAnswerRange.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+                print("MRKLOutputParser: Found final answer using pattern '\(variation)'")
+                return Parsed.finish(AgentFinish(final: answer))
+            }
         }
         
+        // If no final answer found, look for action pattern
         let pattern = "Action\\s*:[\\s]*(.*?)\\s*Action\\s*Input\\s*:[\\s]*(.*)"
         // Adding NSRegularExpression.Options.dotMatchesLineSeparators to allow . to match newlines for the input part
         // Adding NSRegularExpression.Options.caseInsensitive for "Action" and "Action Input"
@@ -34,20 +52,32 @@ public struct MRKLOutputParser: BaseOutputParser {
             }
 
             if let action = actionString, let input = inputString, !action.isEmpty {
-                // The 'log' should be the original text that led to this action,
-                // or at least the relevant part (e.g., Thought + Action + Action Input).
-                // For now, passing the whole 'text' as log is consistent with previous behavior.
+                print("MRKLOutputParser: Found action pattern - Action: '\(action)', Input: '\(input.prefix(50))...'")
                 return Parsed.action(AgentAction(action: action, input: input, log: text))
             } else {
-                // This case handles if parsing the action/input capture groups fails or results in empty action.
                 print("MRKLOutputParser: Regex matched but failed to extract valid action/input.")
                 return Parsed.error
             }
-        } else {
-            // If no "Final Answer" and no "Action: Action Input:" pattern is found.
-            // This could be due to the LLM not adhering to the format.
-            print("MRKLOutputParser: No 'Final Answer' or 'Action: Action Input:' pattern found.")
-            return Parsed.error
         }
+        
+        // Final fallback: if the text seems like a direct answer (no action pattern and no final answer marker)
+        // but contains substantial content, treat it as a final answer
+        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedText.count > 10 && !trimmedText.lowercased().contains("action:") {
+            // Check if it looks like a thoughtful response rather than an error
+            let thoughtPatterns = ["based on", "according to", "the data shows", "i found", "looking at", "analysis", "result"]
+            let lowerText = trimmedText.lowercased()
+            
+            for pattern in thoughtPatterns {
+                if lowerText.contains(pattern) {
+                    print("MRKLOutputParser: Using fallback - treating as final answer due to content pattern '\(pattern)'")
+                    return Parsed.finish(AgentFinish(final: trimmedText))
+                }
+            }
+        }
+        
+        // If no "Final Answer" and no "Action: Action Input:" pattern is found.
+        print("MRKLOutputParser: No recognizable pattern found. Text length: \(text.count), starts with: '\(text.prefix(100))'")
+        return Parsed.error
     }
 }
