@@ -190,8 +190,11 @@ public class AgentExecutor: DefaultChain {
                         
                     }
                 intermediate_steps.append((action, next_step_output.1))
+            case .error:
+                print("WARNING: Agent received Parsed.error from parser. This usually means the LLM response format was not recognized.")
+                return (nil, Parsed.error)
             default:
-//                print("error step.")
+                print("WARNING: Agent received unexpected Parsed type. This may indicate a parsing or format issue.")
                 return (nil, Parsed.error)
             }
         }
